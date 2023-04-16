@@ -1,6 +1,8 @@
 import random
 import numpy as np
 import pickle as cPickle
+import random
+import os
 
 x_range = [0, 1]
 y_range = [0, 1]
@@ -53,6 +55,7 @@ class PreprocesserTS(object):
 
         return grid_tuple, index
 
+
 def norm_data(ts_all):
     max_v, min_v = -1000, 1000
     for ts in ts_all:
@@ -60,7 +63,7 @@ def norm_data(ts_all):
             max_v = max(ts)
         if min_v > min(ts):
             min_v = min(ts)
-    norm_ts = [[[(i-min_v)/(max_v-min_v)] for i in ts] for ts in ts_all]
+    norm_ts = [[[(i - min_v) / (max_v - min_v)] for i in ts] for ts in ts_all]
     return norm_ts
 
 
@@ -100,7 +103,7 @@ def feature_generation(path='./data/FordA/', ts_number=1000000):
         if fname == 'ItalyPowerDemand':
             ts_all.append(ts)
         else:
-            ts_all.append([ts[i]for i in range(0, 96, 4)])
+            ts_all.append([ts[i] for i in range(0, 96, 4)])
     ts_all = norm_data(ts_all)
     ts_all = ts_all[:ts_number]
     print(len(ts_all))
@@ -143,7 +146,7 @@ def feature_generation_3D(path='./data/UWaveGestureLibraryAll/', ts_number=5000)
         ts = [float(i) for i in ts]
         ts_all_labels.append(ts[0])
         ts = ts[1:]
-        ts_all.append([[ts[i], ts[315+i], ts[315*2+i]]
+        ts_all.append([[ts[i], ts[315 + i], ts[315 * 2 + i]]
                        for i in range(0, 315, 15)])
         # ts_all.append(ts[80:])
 
@@ -155,7 +158,82 @@ def feature_generation_3D(path='./data/UWaveGestureLibraryAll/', ts_number=5000)
     print(len(ts_all[0]))
 
     preprocessor = PreprocesserTS(delta=[0.02, 0.02, 0.02], dim_ranges=[
-                                  x_range, y_range, z_range])
+        x_range, y_range, z_range])
+
+    ts_all_grid = [[preprocessor.get_grid_index(
+        tuple=i)[0] for i in ts] for ts in ts_all]
+    print(ts_all_grid[0])
+
+    length = len(ts_all[0])
+    ts_index = {}
+    for i, ts in enumerate(ts_all):
+        ts_index[i] = ts
+    cPickle.dump(ts_index, open(
+        './features/{}_ts_index'.format(fname), 'wb'))
+    cPickle.dump((ts_all, [], length), open(
+        './features/{}_ts_value'.format(fname), 'wb'))
+    cPickle.dump((ts_all_grid, [], length), open(
+        './features/{}_ts_grid'.format(fname), 'wb'))
+    cPickle.dump((ts_all_labels, [], length), open(
+        './features/{}_ts_label'.format(fname), 'wb'))
+
+    return './features/{}_ts_value'.format(fname), fname
+
+
+def get_data_path(path):
+    labels = set()
+    user_list = os.listdir(path)
+    data_num = 0
+    data_path = []
+    for user in user_list:
+        if os.path.exists(path + '/' + user + '/labels.txt'):
+            with open(path + '/' + user + '/labels.txt') as f:
+                for line in f.readlines()[1:]:
+                    file_name = path + '/' + user + '/Trajectory/' + line.split()[0].replace('/', '') + line.split()[
+                        1].replace(':', '') + '.plt'
+                    if os.path.exists(file_name):
+                        labels.add(line.split()[-1])
+                        data_path.append([file_name, line.split()[-1]])
+                        data_num += 1
+    print(f"Toral Trajectory {data_num}")
+    labels = list(labels)
+    labels.sort()
+    print(f"labels: {labels}")
+    return data_path, labels
+
+
+def get_trajectory(path):
+    trajectory = []
+    with open(path) as f:
+        for line in f.readlines()[6:]:
+            latitude, longitude, _, altitude = line.split(',')[:4]
+            trajectory.append([eval(latitude), eval(longitude), eval(altitude)])
+    return trajectory
+
+
+def feature_generation_geolife(path='/home/guanxinyan2022/NeuTS/Geolife Trajectories 1.3/Data', ts_number=5000):
+    data_path, labels = get_data_path(path)
+    labels2id = {labels[i]: i + 1 for i in range(len(labels))}
+    print(labels2id)
+    random.shuffle(data_path)
+    data_path = data_path[:ts_number]
+    fname = 'geolife'
+
+    ts_all = []
+    ts_all_labels = []
+    for data in data_path:
+        ts_all.append(get_trajectory(data[0]))
+        ts_all_labels.append(labels2id[data[1]])
+
+    ts_all = norm_data_3D(ts_all)
+    ts_all = ts_all[:ts_number]
+    print(len(ts_all))
+    print(ts_all[0])
+    print(ts_all[1])
+    print(len(ts_all[0]))
+
+    preprocessor = PreprocesserTS(delta=[0.02, 0.02, 0.02], dim_ranges=[
+        x_range, y_range, z_range])
 
     ts_all_grid = [[preprocessor.get_grid_index(
         tuple=i)[0] for i in ts] for ts in ts_all]
