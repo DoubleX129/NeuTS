@@ -1,0 +1,13 @@
+from distutils.core import setup
+from Cython.Build import cythonize
+import numpy as np
+setup(
+      ext_modules=cythonize('D:\\NeuTS-master\\tools\\traj_dist\\pydist\\discret_frechet_c.pyx'),
+      include_dirs=[np.get_include()]
+
+      # ext_modules=cythonize('D:\\NeuTS-master\\tools\\traj_dist\\pydist\\dtw_c.pyx'),
+      # include_dirs=[np.get_include()]
+
+      # ext_modules=cythonize('erp_c.pyx'),
+      # include_dirs=[np.get_include()]
+)
